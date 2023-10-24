@@ -2,10 +2,20 @@ package cn.paper_card.little_skin_login;
 
 
 import cn.paper_card.MinecraftSessionService;
+import com.google.gson.*;
 import com.mojang.authlib.GameProfile;
 import com.mojang.authlib.properties.Property;
+import com.mojang.authlib.properties.PropertyMap;
 import org.jetbrains.annotations.NotNull;
 
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.nio.charset.StandardCharsets;
+import java.util.Collection;
 import java.util.UUID;
 import java.util.logging.Logger;
 
@@ -16,10 +26,13 @@ class TheSessionService extends MinecraftSessionService {
 
     private final @NotNull LittleSkinLogin plugin;
 
+    private final @NotNull Gson gson;
+
 
     TheSessionService(@NotNull LittleSkinLogin plugin) {
         super(constantURL("https://littleskin.cn/api/yggdrasil/sessionserver"));
         this.plugin = plugin;
+        this.gson = new Gson();
     }
 
     private @NotNull Logger getLogger() {
@@ -33,6 +46,104 @@ class TheSessionService extends MinecraftSessionService {
         return profile;
     }
 
+    private static void close(@NotNull InputStream inputStream, @NotNull InputStreamReader inputStreamReader, @NotNull BufferedReader reader) throws IOException {
+        IOException exception = null;
+
+        try {
+            reader.close();
+        } catch (IOException e) {
+            exception = e;
+        }
+
+        try {
+            inputStreamReader.close();
+        } catch (IOException e) {
+            exception = e;
+        }
+
+        try {
+            inputStream.close();
+        } catch (IOException e) {
+            exception = e;
+        }
+
+        if (exception != null) throw exception;
+    }
+
+    private void addProperties(@NotNull GameProfile profile, @NotNull UUID uuid) {
+        final String jsonStr;
+        try {
+            jsonStr = requestProperties(uuid);
+        } catch (IOException e) {
+            this.getLogger().warning(e.toString());
+            return;
+        }
+
+        final JsonObject jsonObject;
+        try {
+            jsonObject = this.gson.fromJson(jsonStr, JsonObject.class);
+        } catch (JsonSyntaxException e) {
+            this.getLogger().warning(e.toString());
+            return;
+        }
+
+        final JsonArray properties = jsonObject.get("properties").getAsJsonArray();
+        for (JsonElement property : properties) {
+            final JsonObject asJsonObject = property.getAsJsonObject();
+            final String name = asJsonObject.get("name").getAsString();
+            final String value = asJsonObject.get("value").getAsString();
+            final String signature = asJsonObject.get("signature").getAsString();
+            profile.getProperties().put(name, new Property(name, value, signature));
+        }
+    }
+
+    private @NotNull String requestProperties(@NotNull UUID uuid) throws IOException {
+        // GET /sessionserver/session/minecraft/profile/{uuid}?unsigned={unsigned}
+
+        final URL url = constantURL("https://littleskin.cn/api/yggdrasil/sessionserver/session/minecraft/profile/" + uuid.toString().replace("-", "") + "?unsigned=false");
+
+        final HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+
+        final InputStream inputStream;
+
+        try {
+            inputStream = connection.getInputStream();
+        } catch (IOException e) {
+            connection.disconnect();
+            throw e;
+        }
+
+        final InputStreamReader inputStreamReader = new InputStreamReader(inputStream, StandardCharsets.UTF_8);
+        final BufferedReader bufferedReader = new BufferedReader(inputStreamReader);
+
+        final StringBuilder builder = new StringBuilder();
+        String line;
+        try {
+            while ((line = bufferedReader.readLine()) != null) {
+                builder.append(line);
+                builder.append('\n');
+            }
+        } catch (IOException e) {
+            try {
+                close(inputStream, inputStreamReader, bufferedReader);
+            } catch (IOException ignored) {
+            }
+            connection.disconnect();
+            throw e;
+        }
+
+        try {
+            close(inputStream, inputStreamReader, bufferedReader);
+        } catch (IOException e) {
+            connection.disconnect();
+            throw e;
+        }
+        connection.disconnect();
+
+        return builder.toString();
+    }
+
+
     @Override
     protected GameProfile transformProfile(@NotNull GameProfile gameProfile) {
 
@@ -42,6 +153,13 @@ class TheSessionService extends MinecraftSessionService {
         final String name = gameProfile.getName();
 
         getLogger().info("LittleSkin GameProfile {name: %s, uuid: %s}".formatted(name, littleSkinUuid));
+        final PropertyMap properties = gameProfile.getProperties();
+        final Collection<Property> properties1 = properties.get("textures");
+        for (Property property : properties1) {
+            getLogger().info("Name: " + property.getName());
+            getLogger().info("Value: " + property.getValue());
+            getLogger().info("Signature: " + property.getSignature());
+        }
 
         final UUID mojangUuid;
 
@@ -54,9 +172,10 @@ class TheSessionService extends MinecraftSessionService {
         }
 
         if (mojangUuid != null) { // 转换成功
-            String name2 = plugin.getServer().getOfflinePlayer(mojangUuid).getName();
-            if (name2 == null) name2 = name;
-            return new GameProfile(mojangUuid, name2);
+            final GameProfile profile = new GameProfile(mojangUuid, name);
+            // 查询皮肤
+            this.addProperties(profile, littleSkinUuid);
+            return profile;
         }
 
         // 没有绑定的情况
