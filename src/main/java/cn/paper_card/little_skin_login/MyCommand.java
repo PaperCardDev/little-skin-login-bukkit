@@ -1,8 +1,8 @@
 package cn.paper_card.little_skin_login;
 
+import cn.paper_card.little_skin_login.api.BindingInfo;
+import cn.paper_card.little_skin_login.api.exception.LittleSkinHasBeenBoundException;
 import cn.paper_card.mc_command.TheMcCommand;
-import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
@@ -10,6 +10,7 @@ import org.bukkit.permissions.Permission;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.sql.SQLException;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Objects;
@@ -19,23 +20,19 @@ class MyCommand extends TheMcCommand.HasSub {
 
     private final @NotNull Permission permission;
 
-    private final @NotNull LittleSkinLogin plugin;
+    private final @NotNull ThePlugin plugin;
 
-    protected MyCommand(@NotNull LittleSkinLogin plugin) {
+    protected MyCommand(@NotNull ThePlugin plugin) {
         super("little-skin");
         this.plugin = plugin;
         this.permission = Objects.requireNonNull(plugin.getServer().getPluginManager().getPermission("little-skin.command"));
 
-        this.addSubCommand(new SetBind());
+        this.addSubCommand(new Add());
     }
 
     @Override
     protected boolean canNotExecute(@NotNull CommandSender commandSender) {
         return !commandSender.hasPermission(this.permission);
-    }
-
-    private static void sendError(@NotNull CommandSender sender, @NotNull String error) {
-        sender.sendMessage(Component.text(error).color(NamedTextColor.DARK_RED));
     }
 
     private @Nullable UUID parseArgPlayer(@NotNull String argPlayer) {
@@ -54,13 +51,13 @@ class MyCommand extends TheMcCommand.HasSub {
     }
 
 
-    class SetBind extends TheMcCommand {
+    class Add extends TheMcCommand {
 
         private final @NotNull Permission permission;
 
-        protected SetBind() {
-            super("set-bind");
-            this.permission = plugin.addPermission(MyCommand.this.permission.getName() + ".set-bind");
+        protected Add() {
+            super("add");
+            this.permission = plugin.addPermission(MyCommand.this.permission.getName() + "." + this.getLabel());
         }
 
         @Override
@@ -74,20 +71,19 @@ class MyCommand extends TheMcCommand.HasSub {
             final String argLSkinUuid = strings.length > 1 ? strings[1] : null;
 
             if (argPlayer == null) {
-                sendError(commandSender, "你必须指定参数：玩家名或UUID");
+                plugin.sendError(commandSender, "你必须指定参数：玩家名或UUID");
                 return true;
             }
-
 
             final UUID mojangUuid = parseArgPlayer(argPlayer);
 
             if (mojangUuid == null) {
-                sendError(commandSender, "找不到该玩家：%s".formatted(argPlayer));
+                plugin.sendError(commandSender, "找不到该玩家：%s".formatted(argPlayer));
                 return true;
             }
 
             if (argLSkinUuid == null) {
-                sendError(commandSender, "你必须指定参数：LittleSkin的UUID");
+                plugin.sendError(commandSender, "你必须指定参数：LittleSkin的UUID");
                 return true;
             }
 
@@ -96,48 +92,36 @@ class MyCommand extends TheMcCommand.HasSub {
             try {
                 lSkinUuid = UUID.fromString(argLSkinUuid);
             } catch (IllegalArgumentException e) {
-                sendError(commandSender, "不正确的LittleSkinUuid: %s".formatted(argLSkinUuid));
+                plugin.sendError(commandSender, "不正确的LittleSkinUuid: %s".formatted(argLSkinUuid));
                 return true;
             }
 
-            {
-                final UUID uuid;
+            plugin.getTaskScheduler().runTaskAsynchronously(() -> {
+
+
+                final OfflinePlayer offlinePlayer = plugin.getServer().getOfflinePlayer(mojangUuid);
+                String name = offlinePlayer.getName();
+                if (name == null) name = "null";
+
+                final BindingInfo bindingInfo = new BindingInfo(mojangUuid, name, lSkinUuid,
+                        "add指令添加，%s执行".formatted(commandSender.getName()),
+                        System.currentTimeMillis()
+                );
+
                 try {
-                    uuid = plugin.queryLSkinUuid(lSkinUuid);
-                } catch (Exception e) {
-                    e.printStackTrace();
-                    sendError(commandSender, e.toString());
-                    return true;
+                    plugin.getLittleSkinLoginApi().getBindingServiceImpl().addBinding(bindingInfo);
+                } catch (LittleSkinHasBeenBoundException e) {
+                    plugin.sendWarning(commandSender, e.getMessage());
+                    return;
+                } catch (SQLException e) {
+                    plugin.getSLF4JLogger().error("add command -> binding service -> add binding", e);
+                    plugin.sendException(commandSender, e);
+                    return;
                 }
 
-                if (uuid != null) {
-                    sendError(commandSender, "该LittleSkinUuid已经被绑定！");
-                    return true;
-                }
-            }
+                plugin.sendInfo(commandSender);
+            });
 
-
-            final boolean added;
-
-            try {
-                added = plugin.addOrUpdateBind(mojangUuid, lSkinUuid);
-            } catch (Exception e) {
-                e.printStackTrace();
-                sendError(commandSender, e.toString());
-                return true;
-            }
-
-            final OfflinePlayer offlinePlayer = plugin.getServer().getOfflinePlayer(mojangUuid);
-            String name = offlinePlayer.getName();
-            if (name == null) name = offlinePlayer.getUniqueId().toString();
-
-            commandSender.sendMessage(Component.text()
-                    .append(Component.text("%s成功，已将玩家[ %s ]绑定的LittleSkinUuid设置为：".formatted(
-                            added ? "添加" : "更新", name
-                    )))
-                    .append(Component.newline())
-                    .append(Component.text(lSkinUuid.toString()))
-                    .build());
 
             return true;
         }

@@ -1,9 +1,12 @@
 name: LittleSkinLogin
 version: '${project.version}'
-main: cn.paper_card.little_skin_login.LittleSkinLogin
+main: cn.paper_card.little_skin_login.ThePlugin
 api-version: '1.20'
 folia-supported: true
 author: Paper99
+
+depend:
+  - Database
 
 commands:
   little-skin:
@@ -11,4 +14,4 @@ commands:
 
 permissions:
   little-skin.command:
-    default: true
+    default: op

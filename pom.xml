@@ -39,7 +39,31 @@
                         </goals>
                         <configuration>
                             <createDependencyReducedPom>false</createDependencyReducedPom>
+                            <filters>
+                                <filter>
+                                    <artifact>com.github.PaperCardDev:*</artifact>
+                                    <excludes>
+                                        <exclude>META-INF/*.MF</exclude>
+                                    </excludes>
+                                </filter>
+
+                                <filter>
+                                    <artifact>org.jetbrains:*</artifact>
+                                    <excludes>
+                                        <exclude>META-INF/*.MF</exclude>
+                                    </excludes>
+                                </filter>
+
+
+                                <filter>
+                                    <artifact>com.github.Anon8281:*</artifact>
+                                    <excludes>
+                                        <exclude>META-INF/*.MF</exclude>
+                                    </excludes>
+                                </filter>
+                            </filters>
                         </configuration>
+
                     </execution>
                 </executions>
             </plugin>
@@ -61,6 +85,11 @@
             <id>sonatype</id>
             <url>https://oss.sonatype.org/content/groups/public/</url>
         </repository>
+
+        <repository>
+            <id>jitpack.io</id>
+            <url>https://www.jitpack.io</url>
+        </repository>
     </repositories>
 
     <dependencies>
@@ -72,12 +101,18 @@
         </dependency>
 
         <dependency>
-            <groupId>cn.paper_card</groupId>
-            <artifactId>MinecraftSessionService</artifactId>
+            <groupId>com.github.PaperCardDev</groupId>
+            <artifactId>little-skin-login-api</artifactId>
             <version>1.0</version>
         </dependency>
 
-        <!-- https://mvnrepository.com/artifact/com.mojang/authlib -->
+        <dependency>
+            <groupId>com.github.PaperCardDev</groupId>
+            <artifactId>paper-card-auth-api</artifactId>
+            <version>1.1</version>
+            <scope>provided</scope>
+        </dependency>
+
         <dependency>
             <groupId>com.mojang</groupId>
             <artifactId>authlib</artifactId>
@@ -86,24 +121,29 @@
         </dependency>
 
         <dependency>
-            <groupId>cn.paper_card</groupId>
-            <artifactId>Database</artifactId>
+            <groupId>com.github.PaperCardDev</groupId>
+            <artifactId>database-api</artifactId>
             <version>1.0</version>
             <scope>provided</scope>
         </dependency>
 
         <dependency>
-            <groupId>cn.paper_card</groupId>
-            <artifactId>PlayerQqBind</artifactId>
-            <version>1.2</version>
+            <groupId>com.github.PaperCardDev</groupId>
+            <artifactId>qq-bind-api</artifactId>
+            <version>1.1</version>
             <scope>provided</scope>
         </dependency>
 
+        <dependency>
+            <groupId>com.github.PaperCardDev</groupId>
+            <artifactId>mc-command</artifactId>
+            <version>1.0</version>
+        </dependency>
 
         <dependency>
-            <groupId>cn.paper_card</groupId>
-            <artifactId>McCommand</artifactId>
-            <version>1.0</version>
+            <groupId>com.github.Anon8281</groupId>
+            <artifactId>UniversalScheduler</artifactId>
+            <version>0.1.6</version>
         </dependency>
     </dependencies>
 </project>

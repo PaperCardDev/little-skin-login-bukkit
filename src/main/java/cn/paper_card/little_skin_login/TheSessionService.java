@@ -1,12 +1,16 @@
 package cn.paper_card.little_skin_login;
 
 
-import cn.paper_card.MinecraftSessionService;
-import com.google.gson.*;
+import cn.paper_card.little_skin_login.api.BindingInfo;
+import cn.paper_card.paper_card_auth.api.MinecraftSessionService;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonSyntaxException;
 import com.mojang.authlib.GameProfile;
 import com.mojang.authlib.properties.Property;
-import com.mojang.authlib.properties.PropertyMap;
 import org.jetbrains.annotations.NotNull;
+import org.slf4j.Logger;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -15,30 +19,23 @@ import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
-import java.util.Collection;
+import java.sql.SQLException;
 import java.util.UUID;
-import java.util.logging.Logger;
 
 class TheSessionService extends MinecraftSessionService {
 
     public final static String KEY_LITTLE_SKIN_UUID = "paper-card.little-skin-uuid";
     public final static String KEY_LITTLE_SKIN_NAME = "paper-card.little-skin-name";
 
-    private final @NotNull LittleSkinLogin plugin;
+    private final @NotNull BindingServiceImpl bindingService;
 
-    private final @NotNull Gson gson;
+    private final @NotNull Logger logger;
 
-
-    TheSessionService(@NotNull LittleSkinLogin plugin) {
+    TheSessionService(@NotNull BindingServiceImpl bindingService, @NotNull Logger logger) {
         super(constantURL("https://littleskin.cn/api/yggdrasil/sessionserver"));
-        this.plugin = plugin;
-        this.gson = new Gson();
+        this.bindingService = bindingService;
+        this.logger = logger;
     }
-
-    private @NotNull Logger getLogger() {
-        return this.plugin.getLogger();
-    }
-
 
     private @NotNull GameProfile errorGameProfile(@NotNull String error) {
         final GameProfile profile = MinecraftSessionService.createInvalidProfile();
@@ -46,36 +43,13 @@ class TheSessionService extends MinecraftSessionService {
         return profile;
     }
 
-    private static void close(@NotNull InputStream inputStream, @NotNull InputStreamReader inputStreamReader, @NotNull BufferedReader reader) throws IOException {
-        IOException exception = null;
-
-        try {
-            reader.close();
-        } catch (IOException e) {
-            exception = e;
-        }
-
-        try {
-            inputStreamReader.close();
-        } catch (IOException e) {
-            exception = e;
-        }
-
-        try {
-            inputStream.close();
-        } catch (IOException e) {
-            exception = e;
-        }
-
-        if (exception != null) throw exception;
-    }
-
     private void addProperties(@NotNull GameProfile profile, @NotNull UUID uuid) {
+
         final String jsonStr;
         try {
             jsonStr = requestProperties(uuid);
         } catch (IOException e) {
-            this.getLogger().warning(e.toString());
+            this.logger.warn("fail to request little skin properties: " + e);
             return;
         }
 
@@ -83,10 +57,11 @@ class TheSessionService extends MinecraftSessionService {
         try {
             jsonObject = this.gson.fromJson(jsonStr, JsonObject.class);
         } catch (JsonSyntaxException e) {
-            this.getLogger().warning(e.toString());
+            this.logger.warn(e.toString());
             return;
         }
 
+        // todo 空指针判断
         final JsonArray properties = jsonObject.get("properties").getAsJsonArray();
         for (JsonElement property : properties) {
             final JsonObject asJsonObject = property.getAsJsonObject();
@@ -125,7 +100,7 @@ class TheSessionService extends MinecraftSessionService {
             }
         } catch (IOException e) {
             try {
-                close(inputStream, inputStreamReader, bufferedReader);
+                closeStreams(bufferedReader, inputStreamReader, inputStream);
             } catch (IOException ignored) {
             }
             connection.disconnect();
@@ -133,7 +108,7 @@ class TheSessionService extends MinecraftSessionService {
         }
 
         try {
-            close(inputStream, inputStreamReader, bufferedReader);
+            closeStreams(bufferedReader, inputStreamReader, inputStream);
         } catch (IOException e) {
             connection.disconnect();
             throw e;
@@ -152,27 +127,18 @@ class TheSessionService extends MinecraftSessionService {
 
         final String name = gameProfile.getName();
 
-        getLogger().info("LittleSkin GameProfile {name: %s, uuid: %s}".formatted(name, littleSkinUuid));
-        final PropertyMap properties = gameProfile.getProperties();
-        final Collection<Property> properties1 = properties.get("textures");
-        for (Property property : properties1) {
-            getLogger().info("Name: " + property.getName());
-            getLogger().info("Value: " + property.getValue());
-            getLogger().info("Signature: " + property.getSignature());
-        }
-
-        final UUID mojangUuid;
-
         // 根据LittleSkin的UUID查询正版的UUID
+        final BindingInfo info;
+
         try {
-            mojangUuid = plugin.queryMojangUuid(littleSkinUuid);
-        } catch (Exception e) {
-            e.printStackTrace();
+            info = this.bindingService.queryByLittleSkinUuid(littleSkinUuid);
+        } catch (SQLException e) {
+            this.logger.error("bind service -> query by little skin uuid", e);
             return this.errorGameProfile(e.toString());
         }
 
-        if (mojangUuid != null) { // 转换成功
-            final GameProfile profile = new GameProfile(mojangUuid, name);
+        if (info != null) { // 转换成功
+            final GameProfile profile = new GameProfile(info.mojangUuid(), info.name());
             // 查询皮肤
             this.addProperties(profile, littleSkinUuid);
             return profile;
@@ -209,7 +175,8 @@ class TheSessionService extends MinecraftSessionService {
 //        }
 
         // 未绑定的情况
-        final GameProfile profile1 = MinecraftSessionService.createInvalidProfile();
+        final GameProfile profile1 = createInvalidProfile();
+
         profile1.getProperties().put(KEY_LITTLE_SKIN_UUID, new Property(KEY_LITTLE_SKIN_UUID, littleSkinUuid.toString()));
         profile1.getProperties().put(KEY_LITTLE_SKIN_NAME, new Property(KEY_LITTLE_SKIN_NAME, name));
 
