@@ -115,16 +115,24 @@ public final class LittleSkinLoginApiImpl implements LittleSkinLoginApi {
         event.setLoginResult(AsyncPlayerPreLoginEvent.Result.KICK_WHITELIST);
 
         event.kickMessage(Component.text()
-                .append(Component.text("[ LittleSkin外置登录 ]").color(NamedTextColor.LIGHT_PURPLE))
-                .append(Component.newline())
-                .append(Component.text("该LittleSkin角色需要绑定一个现有的正版角色"))
-                .append(Component.newline())
-                .append(Component.text("LittleSkin绑定验证码："))
+                .append(Component.text("[ LittleSkin外置登录 ]").color(NamedTextColor.DARK_AQUA))
+
+                .appendNewline()
+                .append(Component.text("该LittleSkin角色需要绑定一个现有的正版角色").color(NamedTextColor.RED))
+
+                .appendNewline()
+                .append(Component.text("LittleSkin绑定验证码：").color(NamedTextColor.GREEN))
                 .append(Component.text(code).color(NamedTextColor.AQUA).decorate(TextDecoration.BOLD))
-                .append(Component.newline())
+
+                .appendNewline()
                 .append(Component.text("使用方法：直接在QQ群里发送该数字验证码"))
-                .append(Component.newline())
+
+                .appendNewline()
                 .append(Component.text("如果QQ机器人在线，会自动处理验证码"))
+
+                .appendNewline()
+                .append(Component.text("LittleSkin角色：%s (%s)".formatted(nameLittleSkin, uuidLittleSkin.toString())).color(NamedTextColor.GRAY))
+
                 .build());
     }
 
@@ -239,8 +247,9 @@ public final class LittleSkinLoginApiImpl implements LittleSkinLoginApi {
         }
 
         return """
-                添加LittleSkin角色绑定成功:
-                LittleSkin游戏名: %s,
-                快连接服务器试试叭~""".formatted(codeInfo.name());
+                添加LittleSkin角色绑定成功：
+                游戏名：%s
+                LittleSkin角色名：%s
+                快连接服务器试试叭~""".formatted(bindingInfo.name(), codeInfo.name());
     }
 }
