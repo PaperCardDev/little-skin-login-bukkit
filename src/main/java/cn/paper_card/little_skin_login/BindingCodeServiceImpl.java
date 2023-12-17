@@ -83,6 +83,7 @@ class BindingCodeServiceImpl implements BindingCodeService {
 
                 if (updated == 0) {
                     final int inserted = t.insert(code, uuid, name, System.currentTimeMillis());
+                    this.count.set(t.queryCount());
                     this.mySqlConnection.setLastUseTime();
                     if (inserted != 1) throw new RuntimeException("插入了%d条数据！".formatted(inserted));
                     return code;
