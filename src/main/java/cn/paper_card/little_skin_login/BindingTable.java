@@ -44,7 +44,7 @@ class BindingTable {
                     l_uid2 BIGINT NOT NULL,
                     remark VARCHAR(128) NOT NULL,
                     time BIGINT NOT NULL,
-                    PRIMARY KEY(m_uid1, m_uid2)
+                    PRIMARY KEY(m_uid1, m_uid2, l_uid1, l_uid2)
                 )""".formatted(this.name));
     }
 

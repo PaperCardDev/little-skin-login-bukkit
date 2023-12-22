@@ -25,7 +25,7 @@ class BindingCodeServiceImpl implements BindingCodeService {
     private final static String TABLE_NAME = "little_skin_bind_code";
 
     // 验证码有效时长
-    private final static long MAX_ALIVE_TIME = 60 * 1000L;
+    private final static long MAX_ALIVE_TIME = 2 * 60 * 1000L;
 
 
     BindingCodeServiceImpl(@NotNull DatabaseApi.MySqlConnection mySqlConnection) {

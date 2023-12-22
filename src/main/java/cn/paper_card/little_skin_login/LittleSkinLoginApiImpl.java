@@ -5,6 +5,7 @@ import cn.paper_card.database.api.DatabaseApi;
 import cn.paper_card.little_skin_login.api.*;
 import cn.paper_card.little_skin_login.api.exception.LittleSkinHasBeenBoundException;
 import cn.paper_card.paper_card_auth.api.MinecraftSessionService;
+import cn.paper_card.paper_card_auth.api.PaperCardAuthApi;
 import cn.paper_card.qq_bind.api.BindInfo;
 import cn.paper_card.qq_bind.api.QqBindApi;
 import com.destroystokyo.paper.profile.PlayerProfile;
@@ -36,12 +37,13 @@ public final class LittleSkinLoginApiImpl implements LittleSkinLoginApi {
             @NotNull DatabaseApi.MySqlConnection important,
             @NotNull DatabaseApi.MySqlConnection unimportant,
             @NotNull Logger logger,
-            @NotNull Supplier<QqBindApi> qqBindApi) {
+            @NotNull Supplier<QqBindApi> qqBindApi,
+            @NotNull Supplier<PaperCardAuthApi> paperCardAuthApi) {
         this.logger = logger;
         this.bindCodeService = new BindingCodeServiceImpl(unimportant);
         this.bindService = new BindingServiceImpl(important);
 
-        this.onlineSessionService = new TheSessionService(this.bindService, logger);
+        this.onlineSessionService = new TheSessionService(this.bindService, logger, paperCardAuthApi);
         this.qqBindApi = qqBindApi;
     }
 
@@ -113,6 +115,8 @@ public final class LittleSkinLoginApiImpl implements LittleSkinLoginApi {
         }
 
         event.setLoginResult(AsyncPlayerPreLoginEvent.Result.KICK_WHITELIST);
+
+        // todo: 准确的知道QQ机器人是否在线
 
         event.kickMessage(Component.text()
                 .append(Component.text("[ LittleSkin外置登录 ]").color(NamedTextColor.DARK_AQUA))
@@ -226,7 +230,7 @@ public final class LittleSkinLoginApiImpl implements LittleSkinLoginApi {
             return "你的QQ还没有绑定正版账号哦\n请先使用绑定QQ~";
         }
 
-        final BindingInfo bindingInfo = new BindingInfo(qqBind.uuid(), qqBind.name(), codeInfo.uuid(),
+        final BindingInfo bindingInfo = new BindingInfo(qqBind.uuid(), codeInfo.name(), codeInfo.uuid(),
                 "LittleSkin验证码绑定，角色名：%s".formatted(codeInfo.name()),
                 System.currentTimeMillis()
         );
@@ -248,8 +252,7 @@ public final class LittleSkinLoginApiImpl implements LittleSkinLoginApi {
 
         return """
                 添加LittleSkin角色绑定成功：
-                游戏名：%s
                 LittleSkin角色名：%s
-                快连接服务器试试叭~""".formatted(bindingInfo.name(), codeInfo.name());
+                快连接服务器试试叭~""".formatted(codeInfo.name());
     }
 }
