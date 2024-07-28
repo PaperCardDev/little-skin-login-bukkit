@@ -1,5 +1,6 @@
 package cn.paper_card.little_skin_login;
 
+import cn.paper_card.client.api.PaperClientApi;
 import cn.paper_card.database.api.DatabaseApi;
 import cn.paper_card.little_skin_login.api.LittleSkinLoginApi;
 import cn.paper_card.paper_card_auth.api.PaperCardAuthApi;
@@ -29,6 +30,8 @@ public class ThePlugin extends JavaPlugin {
 
     private final @NotNull TaskScheduler taskScheduler;
 
+    private PaperClientApi paperClientApi = null;
+
     public ThePlugin() {
         this.prefix = Component.text()
                 .append(Component.text("["))
@@ -51,7 +54,8 @@ public class ThePlugin extends JavaPlugin {
                 api.getRemoteMySQL().getConnectionUnimportant(),
                 this.getSLF4JLogger(),
                 () -> ThePlugin.this.qqBindApi,
-                () -> ThePlugin.this.paperCardAuthApi
+                () -> ThePlugin.this.paperCardAuthApi,
+                () -> ThePlugin.this.paperClientApi
         );
 
         this.getSLF4JLogger().info("注册%s...".formatted(LittleSkinLoginApi.class.getSimpleName()));
@@ -73,6 +77,14 @@ public class ThePlugin extends JavaPlugin {
         } else {
             this.getSLF4JLogger().info("已经连接到" + PaperCardAuthApi.class.getSimpleName());
         }
+
+        this.paperClientApi = this.getServer().getServicesManager().load(PaperClientApi.class);
+        if (this.paperClientApi == null) {
+            this.getSLF4JLogger().warn("无法连接到" + PaperClientApi.class.getSimpleName());
+        } else {
+            this.getSLF4JLogger().info("已经连接到" + PaperClientApi.class.getSimpleName());
+        }
+
 
         new MyCommand(this);
     }

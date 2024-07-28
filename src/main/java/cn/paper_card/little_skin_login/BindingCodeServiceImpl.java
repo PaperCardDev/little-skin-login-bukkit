@@ -62,7 +62,7 @@ class BindingCodeServiceImpl implements BindingCodeService {
     }
 
     private int randomCode() {
-        final int MIN = 1;
+        final int MIN = 100000;
         final int MAX = 999999;
 
         return new Random().nextInt(MAX - MIN + 1) + MIN;

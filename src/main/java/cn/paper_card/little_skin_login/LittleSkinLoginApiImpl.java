@@ -1,6 +1,7 @@
 package cn.paper_card.little_skin_login;
 
 
+import cn.paper_card.client.api.PaperClientApi;
 import cn.paper_card.database.api.DatabaseApi;
 import cn.paper_card.little_skin_login.api.*;
 import cn.paper_card.little_skin_login.api.exception.LittleSkinHasBeenBoundException;
@@ -38,12 +39,13 @@ public final class LittleSkinLoginApiImpl implements LittleSkinLoginApi {
             @NotNull DatabaseApi.MySqlConnection unimportant,
             @NotNull Logger logger,
             @NotNull Supplier<QqBindApi> qqBindApi,
-            @NotNull Supplier<PaperCardAuthApi> paperCardAuthApi) {
+            @NotNull Supplier<PaperCardAuthApi> paperCardAuthApi,
+            @NotNull Supplier<PaperClientApi> paperClientApi) {
         this.logger = logger;
         this.bindCodeService = new BindingCodeServiceImpl(unimportant);
         this.bindService = new BindingServiceImpl(important);
 
-        this.onlineSessionService = new TheSessionService(this.bindService, logger, paperCardAuthApi);
+        this.onlineSessionService = new TheSessionService(this.bindService, logger, paperCardAuthApi, paperClientApi);
         this.qqBindApi = qqBindApi;
     }
 

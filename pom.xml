@@ -145,5 +145,12 @@
             <artifactId>UniversalScheduler</artifactId>
             <version>0.1.6</version>
         </dependency>
+
+        <dependency>
+            <groupId>com.github.PaperCardDev</groupId>
+            <artifactId>paper-client-api</artifactId>
+            <version>1.5</version>
+            <scope>provided</scope>
+        </dependency>
     </dependencies>
 </project>

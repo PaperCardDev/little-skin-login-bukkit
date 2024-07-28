@@ -1,6 +1,8 @@
 package cn.paper_card.little_skin_login;
 
 
+import cn.paper_card.client.api.PaperClientApi;
+import cn.paper_card.client.api.PaperResponseError;
 import cn.paper_card.little_skin_login.api.BindingInfo;
 import cn.paper_card.paper_card_auth.api.GameProfileInfo;
 import cn.paper_card.paper_card_auth.api.MinecraftSessionService;
@@ -37,13 +39,17 @@ class TheSessionService extends MinecraftSessionService {
 
     private final @NotNull Supplier<PaperCardAuthApi> paperCardAuthApi;
 
+    private final @NotNull Supplier<PaperClientApi> paperClientApi;
+
     TheSessionService(@NotNull BindingServiceImpl bindingService,
                       @NotNull Logger logger,
-                      @NotNull Supplier<PaperCardAuthApi> paperCardAuthApi) {
+                      @NotNull Supplier<PaperCardAuthApi> paperCardAuthApi,
+                      @NotNull Supplier<PaperClientApi> paperClientApi) {
         super(constantURL("https://littleskin.cn/api/yggdrasil/sessionserver"));
         this.bindingService = bindingService;
         this.logger = logger;
         this.paperCardAuthApi = paperCardAuthApi;
+        this.paperClientApi = paperClientApi;
     }
 
     private @NotNull GameProfile errorGameProfile(@NotNull String error) {
@@ -167,8 +173,52 @@ class TheSessionService extends MinecraftSessionService {
         return new GameProfile(littleSkinUuid, name);
     }
 
+    private GameProfile transformProfile2(@NotNull GameProfile gameProfile) throws PaperResponseError, IOException {
+        final UUID littleSkinUuid = gameProfile.getId();
+        if (littleSkinUuid == null) return gameProfile;
+
+        final String littleSkinName = gameProfile.getName();
+
+        this.logger.info("LittleSkin角色 {name: %s, uuid: %s}".formatted(littleSkinName, littleSkinUuid.toString()));
+
+        // 向纸片官网查询
+        final PaperClientApi api = this.paperClientApi.get();
+        if (api == null) return gameProfile;
+
+        final JsonObject p = new JsonObject();
+        p.addProperty("name", littleSkinName);
+        p.addProperty("uuid", littleSkinUuid.toString());
+
+        final JsonElement data = api.sendRequest("/littleskin/player", p, "POST");
+
+        if (data == null || data.isJsonNull()) {
+            return createInvalidProfile();
+        }
+
+        final JsonObject dataObj = data.getAsJsonObject();
+
+        final String name = dataObj.get("name").getAsString();
+//        final String uuid = dataObj.get("uuid").getAsString();
+        final String mojangUuid = dataObj.get("mojang_uuid").getAsString();
+
+        final UUID uuid1 = UUID.fromString(mojangUuid);
+
+        return new GameProfile(uuid1, name);
+    }
+
     @Override
     protected GameProfile transformProfile(@NotNull GameProfile gameProfile) {
+        try {
+            return this.transformProfile2(gameProfile);
+        } catch (Exception e) {
+            this.logger.error("", e);
+            final GameProfile invalidProfile = createInvalidProfile();
+            invalidProfile.getProperties().put("kick-message", new Property("无法查询LittleSkin角色信息，请重试\n" + e, "kick-message"));
+            return invalidProfile;
+        }
+    }
+
+    private GameProfile transformProfile1(@NotNull GameProfile gameProfile) {
 
         final UUID littleSkinUuid = gameProfile.getId();
         if (littleSkinUuid == null) return gameProfile;
